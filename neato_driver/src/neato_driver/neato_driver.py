@@ -34,7 +34,7 @@ __author__ = "ferguson@cs.albany.edu (Michael Ferguson)"
 
 import serial
 
-BASE_WIDTH = 248    # millimeters
+BASE_WIDTH = 237    # millimeters - I measured 237mm, original was 248
 MAX_SPEED = 300     # millimeters/second
 
 """
@@ -129,6 +129,7 @@ class xv11():
                 s = 1
         else:
             self.stop_state = False
+	#print(l,r,s)
         self.port.write("setmotor "+str(int(l))+" "+str(int(r))+" "+str(int(s))+"\n")
 
     def readResponseAndUpdateState(self):
@@ -137,8 +138,18 @@ class xv11():
         response = self.readResponseString()
         for line in response.splitlines():
             vals = line.split(",")
-            if len(vals) >= 2 and vals[0].isalpha() and vals[1].isdigit():
+            #print(vals)
+            #print(len(vals))
+            #if not vals[0].isdigit(): 
+                #print(vals[0])
+            #if len(vals) >= 2 and vals[1].isdigit(): 
+                #print(vals[1])
+            #print(vals[1])
+            if len(vals) >= 2 and not vals[0].isdigit() and vals[1].lstrip('-').isdigit():
+            #if len(vals) >= 2 and not vals[0].isdigit():
+                #print vals[1]
                 self.state[vals[0]] = int(vals[1])
+                #print(self.state[vals[0]])
 
     def getMotors(self):
         """ Update values for motors in the self.state dictionary.

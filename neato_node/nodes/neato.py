@@ -40,6 +40,7 @@ from geometry_msgs.msg import Quaternion
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from tf.broadcaster import TransformBroadcaster
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 from neato_driver.neato_driver import xv11, BASE_WIDTH, MAX_SPEED
 
@@ -89,8 +90,9 @@ class NeatoNode:
             scan.ranges = self.robot.getScanRanges()
 
             # get motor encoder values
+            odom.header.stamp = rospy.Time.now()  # Hahn - moved stamp here since closer to getmotors
             left, right = self.robot.getMotors()
-
+            #print left, right
             # send updated movement commands
             self.robot.setMotors(self.cmd_vel[0], self.cmd_vel[1], max(abs(self.cmd_vel[0]),abs(self.cmd_vel[1])))
             
@@ -98,8 +100,11 @@ class NeatoNode:
             self.robot.requestScan()
             
             # now update position information
-            dt = (scan.header.stamp - then).to_sec()
-            then = scan.header.stamp
+            #dt = (scan.header.stamp - then).to_sec()
+            #then = scan.header.stamp
+            # Changed to using motor stamp
+            dt = (odom.header.stamp - then).to_sec()
+            then = odom.header.stamp
 
             d_left = (left - encoders[0])/1000.0
             d_right = (right - encoders[1])/1000.0
@@ -113,14 +118,24 @@ class NeatoNode:
             self.x += cos(self.th)*x - sin(self.th)*y
             self.y += sin(self.th)*x + cos(self.th)*y
             self.th += dth
+            #rospy.loginfo(self.th)
 
             # prepare tf from base_link to odom
             quaternion = Quaternion()
-            quaternion.z = sin(self.th/2.0)
-            quaternion.w = cos(self.th/2.0)
-
+            #quaternion.z = sin(self.th/2.0)
+            #quaternion.w = cos(self.th/2.0)
+            #quaternion.x = 0
+            #quaternion.y = 0
+            q = quaternion_from_euler(0, 0, self.th)
+            quaternion.x = q[0]
+            quaternion.y = q[1]
+            quaternion.z = q[2]
+            quaternion.w = q[3]
+            #print quaternion
+            #print q
+		
             # prepare odometry
-            odom.header.stamp = rospy.Time.now()
+            #odom.header.stamp = rospy.Time.now()
             odom.pose.pose.position.x = self.x
             odom.pose.pose.position.y = self.y
             odom.pose.pose.position.z = 0
@@ -133,6 +148,12 @@ class NeatoNode:
                 then, "base_link", "odom" )
             self.scanPub.publish(scan)
             self.odomPub.publish(odom)
+
+            
+            #euler = euler_from_quaternion(odom.pose.pose)
+            #yaw = euler[2]
+            #rospy.loginfo(self.th,yaw);
+
 
             # wait, then do it again
             r.sleep()
